@@ -19,6 +19,9 @@ def handle_keys(key):
     elif key_char == 'c':
         return {'move': (1, 1)}
     
+    if key_char == 'g':
+        return {'pickup': True}
+
     if key.vk == libtcod.KEY_ENTER and key.lalt:
         return {'fullscreen': True}
     elif key.vk == libtcod.KEY_ESCAPE:
