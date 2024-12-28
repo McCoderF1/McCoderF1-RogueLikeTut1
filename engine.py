@@ -47,7 +47,7 @@ def main():
                 'light_ground': libtcod.Color(200, 180, 50)
         }
 
-        fighter_component = Fighter(hp=30, defense=10, power=5)
+        fighter_component = Fighter(hp=30, defense=0, power=5)
         inventory_component = Inventory(26)
         player = Entity(0, 0, '@', libtcod.white, 'Player', blocks=True, render_order=RenderOrder.ACTOR, 
                         fighter=fighter_component, inventory=inventory_component)
@@ -73,6 +73,7 @@ def main():
         mouse = libtcod.Mouse()
 
         game_state = GameStates.PLAYERS_TURN
+        previous_game_state = game_state
 
         while not libtcod.console_is_window_closed():
                 libtcod.sys_check_for_event(libtcod.EVENT_KEY_PRESS | libtcod.EVENT_MOUSE, key, mouse)
@@ -81,7 +82,7 @@ def main():
                         recompute_fov(fov_map, player.x, player.y, fov_radius, fov_light_walls, fov_algorithm)
 
                 render_all(con, panel, entities, player, game_map, fov_map, fov_recompute, message_log, screen_width, screen_height,
-                           bar_width, panel_height, panel_y, mouse, colors)
+                           bar_width, panel_height, panel_y, mouse, colors, game_state)
                 
                 fov_recompute = False
 
@@ -89,10 +90,12 @@ def main():
 
                 clear_all(con, entities)
 
-                action = handle_keys(key)
+                action = handle_keys(key, game_state)
 
                 move = action.get('move')
                 pickup = action.get('pickup')
+                show_inventory = action.get('show_inventory')
+                inventory_index = action.get('inventory_index')
                 exit = action.get('exit')
                 fullscreen = action.get('fullscreen')
 
@@ -126,8 +129,20 @@ def main():
                         else:
                                 message_log.add_message(Message('There is nothing here to pick up.', libtcod.yellow))
                 
+                if show_inventory:
+                        previous_game_state = game_state
+                        game_state = GameStates.SHOW_INVENTORY
+
+                if inventory_index is not None and previous_game_state != GameStates.PLAYER_DEAD and inventory_index < len(
+                        player.inventory.items):
+                        item = player.inventory.items[inventory_index]
+                        player_turn_results.extend(player.inventory.use(item))
+
                 if exit:
-                        return True
+                        if game_state == GameStates.SHOW_INVENTORY:
+                                game_state = previous_game_state
+                        else:
+                                return True
                 
                 if fullscreen:
                         libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen())
@@ -136,6 +151,7 @@ def main():
                         message = player_turn_result.get('message')
                         dead_entity = player_turn_result.get('dead')
                         item_added = player_turn_result.get('item_added')
+                        item_consumed = player_turn_result.get('consumed')
 
                         if message:
                                 message_log.add_message(message)
@@ -153,6 +169,9 @@ def main():
 
                                 game_state = GameStates.ENEMY_TURN
 
+                        if item_consumed:
+                                game_state = GameStates.ENEMY_TURN
+                                
                 if game_state == GameStates.ENEMY_TURN:
                         for entity in entities:
                                 if entity.ai:
@@ -175,6 +194,7 @@ def main():
 
                                                         if game_state == GameStates.PLAYER_DEAD:
                                                                 break
+                        
                         if game_state == GameStates.PLAYER_DEAD:
                                 break
 
