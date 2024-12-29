@@ -24,7 +24,7 @@ class Fighter:
 
         if self.hp > self.max_hp:
             self.hp = self.max_hp
-            
+    
     def attack(self, target):
         results = []
 
